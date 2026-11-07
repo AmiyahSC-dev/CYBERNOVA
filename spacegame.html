@@ -34,7 +34,6 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    /* Deep space background */
     background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop');
     background-size: cover;
     background-position: center;
@@ -240,6 +239,45 @@
 
   .hidden { display: none !important; }
 
+  /* --- NEW: NEXT STEPS CARD --- */
+  .next-steps-card {
+    background: rgba(0, 229, 255, 0.05);
+    border: 1px dashed var(--accent);
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    animation: fadeIn 0.5s ease;
+  }
+  
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  
+  .next-steps-card h4 {
+    font-family: var(--font-display);
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+  
+  .next-steps-card p {
+    color: var(--text);
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  
+  .next-steps-card .action-highlight {
+    display: inline-block;
+    background: var(--accent);
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-family: var(--font-display);
+    margin-top: 5px;
+    animation: pulse 1.5s infinite;
+  }
+
   /* --- NEBULA MODAL STYLES --- */
   .modal-overlay {
     position: fixed;
@@ -297,7 +335,6 @@
     padding: 35px;
   }
 
-  /* Glowing border effect for the modal */
   .modal-content::before {
     content: '';
     position: absolute;
@@ -406,7 +443,7 @@
     <ul>
       <li><strong class="highlight-cyan">Defend the Network:</strong> Read the incoming transmission on the left panel. Select the correct security protocol to neutralize the threat.</li>
       <li><strong class="highlight-cyan">Build the Chain:</strong> Every correct answer generates a "Data Packet" that is automatically hashed and added to the Blockchain Ledger on the right.</li>
-      <li><strong class="highlight-cyan">Test the Integrity:</strong> Use the buttons at the bottom of the ledger to verify the chain or simulate a cyber attack.</li>
+      <li><strong class="highlight-cyan">Test the Integrity:</strong> Once your chain is built, use the buttons at the bottom of the ledger to verify the chain or simulate a cyber attack.</li>
     </ul>
 
     <h3>🛡️ How it relates to Cybersecurity</h3>
@@ -461,6 +498,11 @@
         <div id="answers-grid" class="answers-grid"></div>
         
         <div id="cyber-status" class="status-bar">Awaiting security assessment...</div>
+        
+        <!-- NEW: Next Steps / Instructions Card -->
+        <div id="next-steps-card" class="next-steps-card hidden">
+          <!-- Content injected via JS -->
+        </div>
       </div>
     </section>
 
@@ -481,7 +523,7 @@
       <div class="controls">
         <button id="btn-verify">Verify Chain</button>
         <button id="btn-tamper" class="btn-warn">Simulate Attack</button>
-        <button id="btn-reset" class="hidden">Reset</button>
+        <button id="btn-reset" class="hidden">Reset System</button>
       </div>
 
       <div id="block-status" class="status-bar">System ready. Integrity 100%.</div>
@@ -659,6 +701,7 @@ const ui = {
   question: document.getElementById('mission-question'),
   answers: document.getElementById('answers-grid'),
   cyberStatus: document.getElementById('cyber-status'),
+  nextSteps: document.getElementById('next-steps-card'),
   blockCount: document.getElementById('hud-blocks'),
   ledger: document.getElementById('ledger-viewport'),
   blockStatus: document.getElementById('block-status'),
@@ -676,6 +719,15 @@ function loadMission() {
     ui.answers.innerHTML = '';
     ui.cyberStatus.textContent = "Maximum clearance achieved.";
     ui.cyberStatus.className = "status-bar status-ok";
+    
+    // Show the next steps card after all questions are answered
+    ui.nextSteps.classList.remove('hidden');
+    ui.nextSteps.innerHTML = `
+      <h4>⚠ TRAINING COMPLETE</h4>
+      <p>You have secured all network protocols. The blockchain ledger is now fully populated.</p>
+      <p>It is time to test the cryptographic integrity of your chain.</p>
+      <span class="action-highlight">Click "Verify Chain" on the right panel</span>
+    `;
     return;
   }
 
@@ -685,6 +737,9 @@ function loadMission() {
   ui.answers.innerHTML = '';
   ui.cyberStatus.textContent = "Awaiting security assessment...";
   ui.cyberStatus.className = "status-bar";
+  
+  // Hide next steps while playing
+  ui.nextSteps.classList.add('hidden');
 
   m.answers.forEach((text, i) => {
     const btn = document.createElement('button');
@@ -805,11 +860,32 @@ ui.btnVerify.onclick = async () => {
     state.isVerified = true;
     ui.blockStatus.textContent = "✔ INTEGRITY VERIFIED. Chain is secure.";
     ui.blockStatus.className = "status-bar status-ok";
+    ui.btnVerify.textContent = "Verify Chain";
+    
+    // Update Next Steps Card to prompt the attack
+    if (!state.isTampered) {
+      ui.nextSteps.classList.remove('hidden');
+      ui.nextSteps.innerHTML = `
+        <h4>✔ CHAIN VERIFIED</h4>
+        <p>Your cryptographic ledger is perfectly intact.</p>
+        <p>Now, let's see what happens when a hacker tries to alter history.</p>
+        <span class="action-highlight">Click "Simulate Attack" on the right panel</span>
+      `;
+    }
   } else {
     state.isVerified = false;
-    ui.blockStatus.textContent = `✖ INTEGRITY FAILURE at Block #${badIndex}. Chain compromised.`;
+    ui.blockStatus.innerHTML = `<span style="font-size:1.2rem; font-weight:bold;">✖ INTEGRITY FAILURE</span><br>Tampering detected at Block #${badIndex}. The cryptographic math no longer matches!`;
     ui.blockStatus.className = "status-bar status-bad";
     ui.btnReset.classList.remove('hidden');
+    
+    // Update Next Steps Card to prompt reset
+    ui.nextSteps.classList.remove('hidden');
+    ui.nextSteps.innerHTML = `
+      <h4>⚠ CHAIN COMPROMISED</h4>
+      <p>You successfully detected the attacker's tampering. The system caught the modification because the hash no longer matched.</p>
+      <p>In a real system, you would now restore from a backup.</p>
+      <span class="action-highlight">Click "Reset System" on the right panel</span>
+    `;
   }
 };
 
@@ -824,12 +900,31 @@ ui.btnTamper.onclick = () => {
   state.isTampered = true;
   state.isVerified = false;
   
+  // Secretly modify the data of the first block
   state.blocks[0].data += " [MODIFIED BY ATTACKER]";
   
   renderLedger();
-  ui.blockStatus.textContent = "⚠ WARNING: Unauthorized modification detected in ledger data. Verify immediately.";
+  
+  // Tell the user exactly what to do next in the status bar
+  ui.blockStatus.innerHTML = `⚠ <strong>ATTACK DETECTED:</strong> A hacker modified Block #0.<br><span style="color:var(--text-muted); font-size:0.9rem;">Click "Detect Attack" to run the cryptographic check.</span>`;
   ui.blockStatus.className = "status-bar status-warn";
+  
+  // Change the verify button to make it obvious
+  ui.btnVerify.textContent = "Detect Attack (Verify)";
+  ui.btnVerify.style.boxShadow = "0 0 15px var(--warn)";
+  ui.btnVerify.style.borderColor = "var(--warn)";
+  ui.btnVerify.style.color = "var(--warn)";
+  
   ui.btnReset.classList.remove('hidden');
+
+  // Update Next Steps Card for the attack phase
+  ui.nextSteps.classList.remove('hidden');
+  ui.nextSteps.innerHTML = `
+    <h4>⚠ INTRUSION DETECTED</h4>
+    <p>A hacker has secretly altered a record in Block #0 without updating its digital fingerprint (hash).</p>
+    <p>Your mission is to find the tampering.</p>
+    <span class="action-highlight">Click "Detect Attack" on the right panel</span>
+  `;
 };
 
 ui.btnReset.onclick = () => {
@@ -852,6 +947,21 @@ ui.btnReset.onclick = () => {
     ui.blockStatus.textContent = "System reset. Chain rebuilt from clean records.";
     ui.blockStatus.className = "status-bar";
     ui.btnReset.classList.add('hidden');
+    
+    // Reset the Verify button back to normal
+    ui.btnVerify.textContent = "Verify Chain";
+    ui.btnVerify.style.boxShadow = "";
+    ui.btnVerify.style.borderColor = "var(--accent)";
+    ui.btnVerify.style.color = "var(--text)";
+
+    // Update Next Steps Card back to the beginning of the verification phase
+    ui.nextSteps.classList.remove('hidden');
+    ui.nextSteps.innerHTML = `
+      <h4>✔ SYSTEM RESTORED</h4>
+      <p>The corrupted data has been wiped and the clean chain has been rebuilt.</p>
+      <p>You can now test the system again.</p>
+      <span class="action-highlight">Click "Verify Chain" to check integrity</span>
+    `;
   })();
 };
 
