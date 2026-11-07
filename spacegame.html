@@ -837,7 +837,8 @@ function handleAnswer(index, btn) {
   } else {
     btn.classList.add('wrong');
     buttons[m.correct].classList.add('correct');
-    ui.cyberStatus.textContent = "✖ BREACH DETECTED. Review highlighted protocol.";
+    // CHANGED TEXT HERE
+    ui.cyberStatus.textContent = "✖ INCORRECT. Retrying protocol...";
     ui.cyberStatus.className = "status-bar status-bad";
     
     setTimeout(() => {
