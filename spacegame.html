@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orbital Security Command</title>
+
+<style>
+  :root {
+    --bg: #050014;
+    --panel-bg: rgba(10, 25, 60, 0.6);
+    --panel-border: #00e5ff;
+    --accent: #00e5ff;
+    --accent-glow: rgba(0, 229, 255, 0.4);
+    --text: #e0f7fa;
+    --text-muted: #8ab4f8;
+    --ok: #00ffaa;
+    --warn: #ffcc00;
+    --bad: #ff3366;
+    --font-display: 'Orbitron', 'Courier New', monospace;
+    --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #000;
+    color: var(--text);
+    font-family: var(--font-mono);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-image: url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* 3D Canvas Overlay */
+  #space-canvas {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* Main Cockpit Wrapper */
+  #cockpit {
+    position: relative;
+    z-index: 10;
+    width: 95vw;
+    height: 95vh;
+    max-width: 1400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    perspective: 1000px;
+  }
+
+  /* Top HUD Bar */
+  .hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 30px;
+    background: linear-gradient(180deg, rgba(0,229,255,0.1) 0%, transparent 100%);
+    border-top: 2px solid var(--panel-border);
+    border-bottom: 1px solid var(--panel-border);
+    box-shadow: 0 0 20px var(--accent-glow);
+    border-radius: 0 0 20px 20px;
+    font-family: var(--font-display);
+  }
+
+  .hud-title { font-size: 1.5rem; letter-spacing: 2px; text-shadow: 0 0 10px var(--accent); }
+  .hud-stat { color: var(--ok); font-weight: bold; }
+
+  /* Main Dashboard Area */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Sci-Fi Panel Base */
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    box-shadow: 0 0 15px var(--accent-glow), inset 0 0 20px rgba(0,229,255,0.1);
+    backdrop-filter: blur(8px);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Corner accents for the panels */
+  .panel::before, .panel::after {
+    content: ''; position: absolute; width: 20px; height: 20px; border: 2px solid var(--accent);
+  }
+  .panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; border-radius: 12px 0 0 0; }
+  .panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; border-radius: 0 0 12px 0; }
+
+  .panel-title {
+    font-family: var(--font-display);
+    color: var(--accent);
+    font-size: 1rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(0,229,255,0.3);
+    padding-bottom: 10px;
+  }
+
+  /* Left Panel: Mission Console */
+  .mission-console { display: flex; flex-direction: column; flex: 1; gap: 15px; }
+  
+  .transmission-box {
+    background: rgba(0,0,0,0.5);
+    border-left: 4px solid var(--warn);
+    padding: 15px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .kicker { color: var(--warn); font-size: 0.8rem; letter-spacing: 1px; animation: pulse 2s infinite; margin-bottom: 8px; }
+  #mission-question { font-size: 1.1rem; line-height: 1.4; font-family: sans-serif; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .answers-grid { display: grid; gap: 10px; }
+
+  /* Sci-Fi Buttons */
+  button {
+    font-family: var(--font-mono);
+    background: rgba(0, 229, 255, 0.05);
+    color: var(--text);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 12px 15px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  button:hover:not(:disabled) {
+    background: rgba(0, 229, 255, 0.2);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  button:active:not(:disabled) { transform: scale(0.98); }
+
+  button.correct { border-color: var(--ok); background: rgba(0,255,170,0.2); box-shadow: 0 0 15px rgba(0,255,170,0.4); }
+  button.wrong { border-color: var(--bad); background: rgba(255,51,102,0.2); }
+  
+  /* Right Panel: Blockchain Ledger */
+  .ledger-panel { display: flex; flex-direction: column; }
+  
+  .ledger-viewport {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Custom Scrollbar */
+  .ledger-viewport::-webkit-scrollbar { width: 6px; }
+  .ledger-viewport::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); }
+  .ledger-viewport::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+  .block-node {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,229,255,0.3);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 0.75rem;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+  .block-header { color: var(--accent); font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .block-data { color: var(--text-muted); font-style: italic; margin-bottom: 5px; }
+  .block-hash { font-family: monospace; color: #4a5568; word-break: break-all; font-size: 0.7rem; }
+  .block-hash span { color: var(--ok); }
+
+  /* Controls Footer */
+  .controls { display: flex; gap: 10px; margin-top: 15px; }
+  .controls button { flex: 1; text-align: center; font-family: var(--font-display); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+  .btn-warn { border-color: var(--warn); color: var(--warn); }
+  .btn-warn:hover { background: rgba(255,204,0,0.2); box-shadow: 0 0 10px rgba(255,204,0,0.4); }
+  
+  .status-bar {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--text-muted);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    text-align: center;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .status-ok { border-color: var(--ok); color: var(--ok); text-shadow: 0 0 5px var(--ok); }
+  .status-bad { border-color: var(--bad); color: var(--bad); text-shadow: 0 0 5px var(--bad); }
+  .status-warn { border-color: var(--warn); color: var(--warn); text-shadow: 0 0 5px var(--warn); }
+
+  .hidden { display: none !important; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .dashboard { grid-template-columns: 1fr; }
+    #cockpit { height: auto; min-height: 100vh; overflow-y: auto; }
+    body { overflow: auto; align-items: flex-start; padding: 20px 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="space-canvas"></canvas>
+
+<div id="cockpit">
+  
+  <!-- Top HUD -->
+  <header class="hud-top">
+    <div class="hud-title">SYS: ORBITAL SECURITY</div>
+    <div>CLEARANCE: <span id="hud-level" class="hud-stat">CADET</span></div>
+    <div>XP: <span id="hud-xp" class="hud-stat">0000</span></div>
+  </header>
+
+  <div class="dashboard">
+    
+    <!-- Left Panel: Cyber Defense -->
+    <section class="panel">
+      <div class="panel-title">
+        <span>🛡 Threat Assessment Console</span>
+        <span id="hud-mission-count">MISSION 01/05</span>
+      </div>
+      
+      <div class="mission-console">
+        <div class="transmission-box">
+          <div class="kicker">INCOMING TRANSMISSION</div>
+          <h2 id="mission-question">Loading secure feed...</h2>
+        </div>
+        
+        <div id="answers-grid" class="answers-grid"></div>
+        
+        <div id="cyber-status" class="status-bar">Awaiting security assessment...</div>
+      </div>
+    </section>
+
+    <!-- Right Panel: Blockchain -->
+    <section class="panel ledger-panel">
+      <div class="panel-title">
+        <span>⛓ Cryptographic Ledger</span>
+        <span id="hud-blocks">BLOCKS: 00</span>
+      </div>
+
+      <div id="ledger-viewport" class="ledger-viewport">
+        <!-- Blocks injected here -->
+        <div style="text-align:center; color:var(--text-muted); margin-top:20px; font-style:italic;">
+          No data packets verified.<br>Complete missions to build the chain.
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-verify">Verify Chain</button>
+        <button id="btn-tamper" class="btn-warn">Simulate Attack</button>
+        <button id="btn-reset" class="hidden">Reset</button>
+      </div>
+
+      <div id="block-status" class="status-bar">System ready. Integrity 100%.</div>
+    </section>
+
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* =========================================================
+   1. THREE.JS 3D STARFIELD
+   ========================================================= */
+function init3D() {
+  const canvas = document.getElementById('space-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 5;
+
+  // Create a swirling starfield
+  const particlesGeo = new THREE.BufferGeometry();
+  const particleCount = 3000;
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+
+  const color1 = new THREE.Color(0x00e5ff); // Cyan
+  const color2 = new THREE.Color(0xff00ff); // Magenta
+
+  for (let i = 0; i < particleCount * 3; i += 3) {
+    // Spiral distribution
+    const r = Math.random() * 20 + 1;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI * 2;
+    
+    positions[i] = Math.cos(theta) * r;
+    positions[i+1] = Math.sin(theta) * r;
+    positions[i+2] = Math.sin(phi) * r - 10;
+
+    // Mix colors based on distance
+    const mixedColor = color1.clone().lerp(color2, Math.random());
+    colors[i] = mixedColor.r;
+    colors[i+1] = mixedColor.g;
+    colors[i+2] = mixedColor.b;
+  }
+
+  particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const particlesMat = new THREE.PointsMaterial({
+    size: 0.05,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending
+  });
+
+  const starfield = new THREE.Points(particlesGeo, particlesMat);
+  scene.add(starfield);
+
+  // Animation Loop
+  function animate() {
+    requestAnimationFrame(animate);
+    starfield.rotation.y += 0.0005;
+    starfield.rotation.x += 0.0002;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+init3D();
+
+/* =========================================================
+   2. GAME DATA & STATE
+   ========================================================= */
+const missions = [
+  {
+    q: "An urgent email demands you verify your password via an unfamiliar link. What do you do?",
+    answers: ["Click link immediately", "Reply with password", "Report & verify via official site"],
+    correct: 2,
+    data: "Phishing Defense Protocol: Verify urgent requests through independent channels.",
+    tag: "PHISHING"
+  },
+  {
+    q: "Which password practice provides the strongest protection?",
+    answers: ["Reuse one strong pass", "Unique pass + MFA", "Write in public doc"],
+    correct: 1,
+    data: "Credential Hygiene: Unique passwords and Multi-Factor Authentication prevent unauthorized access.",
+    tag: "AUTH"
+  },
+  {
+    q: "An unexpected attachment arrives from an unknown sender. Safest action?",
+    answers: ["Open and inspect", "Disable AV to test", "Verify sender & scan"],
+    correct: 2,
+    data: "Malware Defense: Treat unexpected files as hostile; verify context before execution.",
+    tag: "MALWARE"
+  },
+  {
+    q: "You must access a sensitive system remotely. Which connection is safer?",
+    answers: ["Open public Wi-Fi", "Trusted network + encrypted VPN", "Any hotspot with a padlock"],
+    correct: 1,
+    data: "Network Security: Use encrypted tunnels (VPNs) on trusted networks to prevent MITM attacks.",
+    tag: "NETWORK"
+  },
+  {
+    q: "What is the best way to protect important records against ransomware?",
+    answers: ["Keep one local copy", "Air-gapped, tested backups", "Store in public folder"],
+    correct: 1,
+    data: "Data Protection: Maintain offline, tested backups (3-2-1 rule) for reliable recovery.",
+    tag: "BACKUP"
+  }
+];
+
+const state = {
+  currentMission: 0,
+  xp: 0,
+  level: "CADET",
+  blocks: [],
+  isTampered: false,
+  isVerified: false
+};
+
+/* =========================================================
+   3. CRYPTO (SHA-256)
+   ========================================================= */
+async function sha256(text) {
+  const bytes = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* =========================================================
+   4. UI ELEMENTS
+   ========================================================= */
+const ui = {
+  xp: document.getElementById('hud-xp'),
+  level: document.getElementById('hud-level'),
+  missionCount: document.getElementById('hud-mission-count'),
+  question: document.getElementById('mission-question'),
+  answers: document.getElementById('answers-grid'),
+  cyberStatus: document.getElementById('cyber-status'),
+  blockCount: document.getElementById('hud-blocks'),
+  ledger: document.getElementById('ledger-viewport'),
+  blockStatus: document.getElementById('block-status'),
+  btnVerify: document.getElementById('btn-verify'),
+  btnTamper: document.getElementById('btn-tamper'),
+  btnReset: document.getElementById('btn-reset')
+};
+
+/* =========================================================
+   5. GAME LOGIC
+   ========================================================= */
+function loadMission() {
+  if (state.currentMission >= missions.length) {
+    ui.question.textContent = "ALL MISSIONS COMPLETE. SYSTEM SECURE.";
+    ui.answers.innerHTML = '';
+    ui.cyberStatus.textContent = "Maximum clearance achieved.";
+    ui.cyberStatus.className = "status-bar status-ok";
+    return;
+  }
+
+  const m = missions[state.currentMission];
+  ui.missionCount.textContent = `MISSION 0${state.currentMission + 1}/05`;
+  ui.question.textContent = m.q;
+  ui.answers.innerHTML = '';
+  ui.cyberStatus.textContent = "Awaiting security assessment...";
+  ui.cyberStatus.className = "status-bar";
+
+  m.answers.forEach((text, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.onclick = () => handleAnswer(i, btn);
+    ui.answers.appendChild(btn);
+  });
+}
+
+function handleAnswer(index, btn) {
+  const m = missions[state.currentMission];
+  const buttons = ui.answers.querySelectorAll('button');
+  buttons.forEach(b => b.disabled = true);
+
+  if (index === m.correct) {
+    btn.classList.add('correct');
+    ui.cyberStatus.textContent = "✔ THREAT NEUTRALIZED. Adding data packet...";
+    ui.cyberStatus.className = "status-bar status-ok";
+    state.xp += 100;
+    updateHud();
+    
+    // Auto-add to blockchain after short delay
+    setTimeout(() => addBlock(m), 600);
+  } else {
+    btn.classList.add('wrong');
+    buttons[m.correct].classList.add('correct');
+    ui.cyberStatus.textContent = "✖ BREACH DETECTED. Review highlighted protocol.";
+    ui.cyberStatus.className = "status-bar status-bad";
+    
+    // Allow retry
+    setTimeout(() => {
+      buttons.forEach(b => { b.disabled = false; b.classList.remove('wrong', 'correct'); });
+    }, 1500);
+  }
+}
+
+function updateHud() {
+  ui.xp.textContent = String(state.xp).padStart(4, '0');
+  if (state.xp >= 500) state.level = "COMMANDER";
+  else if (state.xp >= 300) state.level = "DEFENDER";
+  else if (state.xp >= 200) state.level = "SPECIALIST";
+  ui.level.textContent = state.level;
+}
+
+/* =========================================================
+   6. BLOCKCHAIN LEDGER
+   ========================================================= */
+async function addBlock(missionData) {
+  const index = state.blocks.length;
+  const prevHash = index === 0 ? "GENESIS" : state.blocks[index - 1].hash;
+  const timestamp = new Date().toISOString();
+  
+  const payload = JSON.stringify({ index, prevHash, timestamp, data: missionData.data });
+  const hash = await sha256(payload);
+
+  const block = { index, prevHash, timestamp, data: missionData.data, tag: missionData.tag, hash };
+  state.blocks.push(block);
+  state.isVerified = false;
+
+  renderLedger();
+  
+  // Advance to next mission
+  state.currentMission++;
+  setTimeout(loadMission, 1000);
+}
+
+function renderLedger() {
+  ui.blockCount.textContent = `BLOCKS: ${String(state.blocks.length).padStart(2, '0')}`;
+  
+  if (state.blocks.length === 0) {
+    ui.ledger.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin-top:20px; font-style:italic;">No data packets verified.<br>Complete missions to build the chain.</div>';
+    return;
+  }
+
+  ui.ledger.innerHTML = '';
+  state.blocks.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'block-node';
+    div.innerHTML = `
+      <div class="block-header">
+        <span>BLOCK #${b.index} [${b.tag}]</span>
+        <span>${b.timestamp.split('T')[1].slice(0,8)}</span>
+      </div>
+      <div class="block-data">${b.data}</div>
+      <div class="block-hash">HASH: <span>${b.hash.slice(0, 16)}...</span></div>
+      <div class="block-hash">PREV: ${b.prevHash.slice(0, 16)}...</div>
+    `;
+    ui.ledger.appendChild(div);
+  });
+  
+  // Auto-scroll to bottom
+  ui.ledger.scrollTop = ui.ledger.scrollHeight;
+}
+
+/* =========================================================
+   7. ATTACK & VERIFY CONTROLS
+   ========================================================= */
+ui.btnVerify.onclick = async () => {
+  if (state.blocks.length === 0) {
+    ui.blockStatus.textContent = "No blocks to verify.";
+    ui.blockStatus.className = "status-bar status-warn";
+    return;
+  }
+
+  let valid = true;
+  let badIndex = -1;
+
+  for (let i = 0; i < state.blocks.length; i++) {
+    const b = state.blocks[i];
+    const expectedPrev = i === 0 ? "GENESIS" : state.blocks[i - 1].hash;
+    const payload = JSON.stringify({ index: b.index, prevHash: b.prevHash, timestamp: b.timestamp, data: b.data });
+    const recomputed = await sha256(payload);
+
+    if (recomputed !== b.hash || b.prevHash !== expectedPrev) {
+      valid = false;
+      badIndex = i;
+      break;
+    }
+  }
+
+  if (valid) {
+    state.isVerified = true;
+    ui.blockStatus.textContent = "✔ INTEGRITY VERIFIED. Chain is secure.";
+    ui.blockStatus.className = "status-bar status-ok";
+  } else {
+    state.isVerified = false;
+    ui.blockStatus.textContent = `✖ INTEGRITY FAILURE at Block #${badIndex}. Chain compromised.`;
+    ui.blockStatus.className = "status-bar status-bad";
+    ui.btnReset.classList.remove('hidden');
+  }
+};
+
+ui.btnTamper.onclick = () => {
+  if (state.blocks.length === 0) {
+    ui.blockStatus.textContent = "Need at least one block to simulate attack.";
+    ui.blockStatus.className = "status-bar status-warn";
+    return;
+  }
+  if (state.isTampered) return;
+
+  state.isTampered = true;
+  state.isVerified = false;
+  
+  // Secretly modify data without updating hash
+  state.blocks[0].data += " [MODIFIED BY ATTACKER]";
+  
+  renderLedger();
+  ui.blockStatus.textContent = "⚠ WARNING: Unauthorized modification detected in ledger data. Verify immediately.";
+  ui.blockStatus.className = "status-bar status-warn";
+  ui.btnReset.classList.remove('hidden');
+};
+
+ui.btnReset.onclick = () => {
+  // Rebuild chain from scratch based on completed missions
+  const completedCount = state.currentMission;
+  state.blocks = [];
+  state.isTampered = false;
+  state.isVerified = false;
+  
+  // Re-add blocks quickly
+  (async () => {
+    for (let i = 0; i < completedCount; i++) {
+      const m = missions[i];
+      const index = state.blocks.length;
+      const prevHash = index === 0 ? "GENESIS" : state.blocks[index - 1].hash;
+      const timestamp = new Date().toISOString();
+      const payload = JSON.stringify({ index, prevHash, timestamp, data: m.data });
+      const hash = await sha256(payload);
+      state.blocks.push({ index, prevHash, timestamp, data: m.data, tag: m.tag, hash });
+    }
+    renderLedger();
+    ui.blockStatus.textContent = "System reset. Chain rebuilt from clean records.";
+    ui.blockStatus.className = "status-bar";
+    ui.btnReset.classList.add('hidden');
+  })();
+};
+
+/* =========================================================
+   8. INIT
+   ========================================================= */
+loadMission();
+updateHud();
+</script>
+</body>
+</html>
