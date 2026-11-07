@@ -239,7 +239,7 @@
 
   .hidden { display: none !important; }
 
-  /* --- NEW: NEXT STEPS CARD --- */
+  /* --- NEXT STEPS CARD --- */
   .next-steps-card {
     background: rgba(0, 229, 255, 0.05);
     border: 1px dashed var(--accent);
@@ -248,6 +248,7 @@
     text-align: center;
     font-size: 0.9rem;
     animation: fadeIn 0.5s ease;
+    margin-top: auto;
   }
   
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -429,7 +430,7 @@
 
 <canvas id="space-canvas"></canvas>
 
-<!-- NEBULA BRIEFING MODAL -->
+<!-- BRIEFING MODAL -->
 <div id="briefing-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal-content">
     <button class="modal-close" id="btn-close-modal" aria-label="Close briefing">✕</button>
@@ -468,6 +469,29 @@
   </div>
 </div>
 
+<!-- MISSION COMPLETE / GAME OVER MODAL -->
+<div id="game-over-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="game-over-title">
+  <div class="modal-content">
+    <div class="modal-scroll" style="text-align: center;">
+      <h2 id="game-over-title" style="font-size: 2rem;">MISSION COMPLETE</h2>
+      <p style="font-size: 1.2rem; margin-top: 20px;">You successfully protected the station and verified the cryptographic ledger.</p>
+      
+      <div style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; margin: 30px 0; border: 1px solid var(--accent);">
+        <h3 style="margin-top: 0; color: var(--ok);">FINAL STATS</h3>
+        <p style="font-size: 1.1rem; margin-bottom: 5px;">Clearance Level: <span class="highlight" id="final-level">COMMANDER</span></p>
+        <p style="font-size: 1.1rem; margin-bottom: 5px;">Total XP: <span class="highlight" id="final-xp">1000</span></p>
+        <p style="font-size: 1.1rem; margin-bottom: 0;">Integrity Checks Passed: <span class="highlight" id="final-integrity">2</span></p>
+      </div>
+
+      <p>You have mastered the basics of phishing defense, credential hygiene, malware analysis, and blockchain integrity.</p>
+      
+      <button id="btn-play-again" style="background: var(--accent); color: #000; font-weight: bold; font-family: var(--font-display); font-size: 1.1rem; padding: 15px 30px; border-radius: 8px; cursor: pointer; margin-top: 20px; width: 100%; text-align: center; transition: transform 0.2s; border: none;">
+        INITIATE ROUND 2 (NEW THREATS)
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="cockpit">
   
   <!-- Top HUD -->
@@ -499,7 +523,7 @@
         
         <div id="cyber-status" class="status-bar">Awaiting security assessment...</div>
         
-        <!-- NEW: Next Steps / Instructions Card -->
+        <!-- Next Steps / Instructions Card -->
         <div id="next-steps-card" class="next-steps-card hidden">
           <!-- Content injected via JS -->
         </div>
@@ -616,70 +640,111 @@ const modal = document.getElementById('briefing-modal');
 const btnBriefing = document.getElementById('btn-briefing');
 const btnCloseModal = document.getElementById('btn-close-modal');
 
-btnBriefing.addEventListener('click', () => {
-  modal.classList.add('active');
-});
+btnBriefing.addEventListener('click', () => modal.classList.add('active'));
+btnCloseModal.addEventListener('click', () => modal.classList.remove('active'));
+modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
 
-btnCloseModal.addEventListener('click', () => {
-  modal.classList.remove('active');
-});
-
-modal.addEventListener('click', (e) => {
-  if (e.target === modal) modal.classList.remove('active');
-});
-
-// Show modal on first load
+// Show briefing on first load
 setTimeout(() => modal.classList.add('active'), 500);
 
 
 /* =========================================================
    3. GAME DATA & STATE
    ========================================================= */
-const missions = [
-  {
-    q: "An urgent email demands you verify your password via an unfamiliar link. What do you do?",
-    answers: ["Click link immediately", "Reply with password", "Report & verify via official site"],
-    correct: 2,
-    data: "Phishing Defense Protocol: Verify urgent requests through independent channels.",
-    tag: "PHISHING"
-  },
-  {
-    q: "Which password practice provides the strongest protection?",
-    answers: ["Reuse one strong pass", "Unique pass + MFA", "Write in public doc"],
-    correct: 1,
-    data: "Credential Hygiene: Unique passwords and Multi-Factor Authentication prevent unauthorized access.",
-    tag: "AUTH"
-  },
-  {
-    q: "An unexpected attachment arrives from an unknown sender. Safest action?",
-    answers: ["Open and inspect", "Disable AV to test", "Verify sender & scan"],
-    correct: 2,
-    data: "Malware Defense: Treat unexpected files as hostile; verify context before execution.",
-    tag: "MALWARE"
-  },
-  {
-    q: "You must access a sensitive system remotely. Which connection is safer?",
-    answers: ["Open public Wi-Fi", "Trusted network + encrypted VPN", "Any hotspot with a padlock"],
-    correct: 1,
-    data: "Network Security: Use encrypted tunnels (VPNs) on trusted networks to prevent MITM attacks.",
-    tag: "NETWORK"
-  },
-  {
-    q: "What is the best way to protect important records against ransomware?",
-    answers: ["Keep one local copy", "Air-gapped, tested backups", "Store in public folder"],
-    correct: 1,
-    data: "Data Protection: Maintain offline, tested backups (3-2-1 rule) for reliable recovery.",
-    tag: "BACKUP"
-  }
+const rounds = [
+  // ROUND 1: The Basics
+  [
+    {
+      q: "An urgent email demands you verify your password via an unfamiliar link. What do you do?",
+      answers: ["Click link immediately", "Reply with password", "Report & verify via official site"],
+      correct: 2,
+      data: "Phishing Defense Protocol: Verify urgent requests through independent channels.",
+      tag: "PHISHING"
+    },
+    {
+      q: "Which password practice provides the strongest protection?",
+      answers: ["Reuse one strong pass", "Unique pass + MFA", "Write in public doc"],
+      correct: 1,
+      data: "Credential Hygiene: Unique passwords and Multi-Factor Authentication prevent unauthorized access.",
+      tag: "AUTH"
+    },
+    {
+      q: "An unexpected attachment arrives from an unknown sender. Safest action?",
+      answers: ["Open and inspect", "Disable AV to test", "Verify sender & scan"],
+      correct: 2,
+      data: "Malware Defense: Treat unexpected files as hostile; verify context before execution.",
+      tag: "MALWARE"
+    },
+    {
+      q: "You must access a sensitive system remotely. Which connection is safer?",
+      answers: ["Open public Wi-Fi", "Trusted network + encrypted VPN", "Any hotspot with a padlock"],
+      correct: 1,
+      data: "Network Security: Use encrypted tunnels (VPNs) on trusted networks to prevent MITM attacks.",
+      tag: "NETWORK"
+    },
+    {
+      q: "What is the best way to protect important records against ransomware?",
+      answers: ["Keep one local copy", "Air-gapped, tested backups", "Store in public folder"],
+      correct: 1,
+      data: "Data Protection: Maintain offline, tested backups (3-2-1 rule) for reliable recovery.",
+      tag: "BACKUP"
+    }
+  ],
+  // ROUND 2: Advanced Threats
+  [
+    {
+      q: "You receive a call from 'IT Support' asking for your password to fix a server issue. What is this?",
+      answers: ["Standard IT procedure", "Vishing (Voice Phishing)", "A secure authentication method"],
+      correct: 1,
+      data: "Social Engineering: Legitimate IT will never ask for your password. Verify identity through official channels.",
+      tag: "VISHING"
+    },
+    {
+      q: "What is a 'Zero-Day' vulnerability?",
+      answers: ["A bug fixed before release", "A flaw unknown to the vendor with no patch yet", "A password with zero entropy"],
+      correct: 1,
+      data: "Vulnerability Management: Zero-days require defense-in-depth (behavioral monitoring) since no patch exists.",
+      tag: "ZERO-DAY"
+    },
+    {
+      q: "You discover a compromised server. What is the FIRST step in Incident Response?",
+      answers: ["Turn it off immediately", "Contain the threat (isolate it)", "Delete the logs"],
+      correct: 1,
+      data: "Incident Response: Containment prevents lateral movement. Do not power off, as volatile memory holds vital evidence.",
+      tag: "RESPONSE"
+    },
+    {
+      q: "Why is 'Symmetric Encryption' (like AES) used for bulk data instead of Asymmetric (RSA)?",
+      answers: ["It is unbreakable", "It is much faster and efficient", "It doesn't need a key"],
+      correct: 1,
+      data: "Cryptography: Symmetric encryption is orders of magnitude faster, making it ideal for large data sets.",
+      tag: "CRYPTO"
+    },
+    {
+      q: "What does a 'Web Application Firewall' (WAF) primarily protect against?",
+      answers: ["Physical theft", "SQL Injection & XSS attacks", "Email spam"],
+      correct: 1,
+      data: "AppSec: WAFs filter HTTP traffic to block common exploits like SQLi and Cross-Site Scripting.",
+      tag: "WAF"
+    },
+    {
+      q: "In a blockchain, what is the purpose of 'Proof of Work'?",
+      answers: ["To make transactions instant", "To prevent spam and secure the network via computational effort", "To hide user identities"],
+      correct: 1,
+      data: "Blockchain Security: PoW requires real-world energy to alter history, making tampering economically unfeasible.",
+      tag: "CONSENSUS"
+    }
+  ]
 ];
 
 const state = {
+  round: 0,
   currentMission: 0,
   xp: 0,
   level: "CADET",
   blocks: [],
-  isTampered: false,
-  isVerified: false
+  phase: "questions", // questions, verify1, attack, detect, reset, verify2
+  integrityPasses: 0
 };
 
 /* =========================================================
@@ -707,38 +772,44 @@ const ui = {
   blockStatus: document.getElementById('block-status'),
   btnVerify: document.getElementById('btn-verify'),
   btnTamper: document.getElementById('btn-tamper'),
-  btnReset: document.getElementById('btn-reset')
+  btnReset: document.getElementById('btn-reset'),
+  gameOverModal: document.getElementById('game-over-modal'),
+  btnPlayAgain: document.getElementById('btn-play-again'),
+  finalLevel: document.getElementById('final-level'),
+  finalXp: document.getElementById('final-xp'),
+  finalIntegrity: document.getElementById('final-integrity')
 };
 
 /* =========================================================
    6. GAME LOGIC
    ========================================================= */
 function loadMission() {
-  if (state.currentMission >= missions.length) {
+  const currentMissions = rounds[state.round];
+
+  if (state.currentMission >= currentMissions.length) {
+    // All questions answered. Move to verify phase.
+    state.phase = "verify1";
     ui.question.textContent = "ALL MISSIONS COMPLETE. SYSTEM SECURE.";
     ui.answers.innerHTML = '';
     ui.cyberStatus.textContent = "Maximum clearance achieved.";
     ui.cyberStatus.className = "status-bar status-ok";
     
-    // Show the next steps card after all questions are answered
-    ui.nextSteps.classList.remove('hidden');
-    ui.nextSteps.innerHTML = `
+    showNextSteps(`
       <h4>⚠ TRAINING COMPLETE</h4>
-      <p>You have secured all network protocols. The blockchain ledger is now fully populated.</p>
+      <p>You have secured all network protocols for this round. The blockchain ledger is fully populated.</p>
       <p>It is time to test the cryptographic integrity of your chain.</p>
       <span class="action-highlight">Click "Verify Chain" on the right panel</span>
-    `;
+    `);
     return;
   }
 
-  const m = missions[state.currentMission];
-  ui.missionCount.textContent = `MISSION 0${state.currentMission + 1}/05`;
+  const m = currentMissions[state.currentMission];
+  ui.missionCount.textContent = `MISSION 0${state.currentMission + 1}/0${currentMissions.length}`;
   ui.question.textContent = m.q;
   ui.answers.innerHTML = '';
   ui.cyberStatus.textContent = "Awaiting security assessment...";
   ui.cyberStatus.className = "status-bar";
   
-  // Hide next steps while playing
   ui.nextSteps.classList.add('hidden');
 
   m.answers.forEach((text, i) => {
@@ -750,7 +821,8 @@ function loadMission() {
 }
 
 function handleAnswer(index, btn) {
-  const m = missions[state.currentMission];
+  const currentMissions = rounds[state.round];
+  const m = currentMissions[state.currentMission];
   const buttons = ui.answers.querySelectorAll('button');
   buttons.forEach(b => b.disabled = true);
 
@@ -776,10 +848,16 @@ function handleAnswer(index, btn) {
 
 function updateHud() {
   ui.xp.textContent = String(state.xp).padStart(4, '0');
-  if (state.xp >= 500) state.level = "COMMANDER";
-  else if (state.xp >= 300) state.level = "DEFENDER";
-  else if (state.xp >= 200) state.level = "SPECIALIST";
+  if (state.xp >= 1000) state.level = "COMMANDER";
+  else if (state.xp >= 700) state.level = "DEFENDER";
+  else if (state.xp >= 400) state.level = "SPECIALIST";
+  else if (state.xp >= 200) state.level = "CADET";
   ui.level.textContent = state.level;
+}
+
+function showNextSteps(html) {
+  ui.nextSteps.innerHTML = html;
+  ui.nextSteps.classList.remove('hidden');
 }
 
 /* =========================================================
@@ -795,8 +873,6 @@ async function addBlock(missionData) {
 
   const block = { index, prevHash, timestamp, data: missionData.data, tag: missionData.tag, hash };
   state.blocks.push(block);
-  state.isVerified = false;
-
   renderLedger();
   
   state.currentMission++;
@@ -857,35 +933,66 @@ ui.btnVerify.onclick = async () => {
   }
 
   if (valid) {
-    state.isVerified = true;
     ui.blockStatus.textContent = "✔ INTEGRITY VERIFIED. Chain is secure.";
     ui.blockStatus.className = "status-bar status-ok";
     ui.btnVerify.textContent = "Verify Chain";
+    ui.btnVerify.style.boxShadow = "";
+    ui.btnVerify.style.borderColor = "var(--accent)";
+    ui.btnVerify.style.color = "var(--text)";
     
-    // Update Next Steps Card to prompt the attack
-    if (!state.isTampered) {
-      ui.nextSteps.classList.remove('hidden');
-      ui.nextSteps.innerHTML = `
+    if (state.phase === "verify1") {
+      // First verification passed. Move to attack phase.
+      state.phase = "attack";
+      showNextSteps(`
         <h4>✔ CHAIN VERIFIED</h4>
         <p>Your cryptographic ledger is perfectly intact.</p>
         <p>Now, let's see what happens when a hacker tries to alter history.</p>
         <span class="action-highlight">Click "Simulate Attack" on the right panel</span>
-      `;
+      `);
+    } else if (state.phase === "verify2") {
+      // Second verification passed. Round is complete!
+      state.phase = "done";
+      state.integrityPasses++;
+      
+      showNextSteps(`
+        <h4>✔ SYSTEM SECURE</h4>
+        <p>You have successfully restored the chain and proven its integrity.</p>
+        <p>This round is complete.</p>
+        <span class="action-highlight">Awaiting new orders...</span>
+      `);
+      
+      setTimeout(() => {
+        ui.finalLevel.textContent = state.level;
+        ui.finalXp.textContent = state.xp;
+        ui.finalIntegrity.textContent = state.integrityPasses;
+
+        ui.gameOverModal.classList.add('active');
+        if (state.round === 0) {
+          ui.btnPlayAgain.textContent = "INITIATE ROUND 2 (NEW THREATS)";
+        } else {
+          ui.btnPlayAgain.textContent = "RESTART MISSION (ROUND 1)";
+        }
+      }, 1200);
     }
   } else {
-    state.isVerified = false;
     ui.blockStatus.innerHTML = `<span style="font-size:1.2rem; font-weight:bold;">✖ INTEGRITY FAILURE</span><br>Tampering detected at Block #${badIndex}. The cryptographic math no longer matches!`;
     ui.blockStatus.className = "status-bar status-bad";
     ui.btnReset.classList.remove('hidden');
     
-    // Update Next Steps Card to prompt reset
-    ui.nextSteps.classList.remove('hidden');
-    ui.nextSteps.innerHTML = `
-      <h4>⚠ CHAIN COMPROMISED</h4>
-      <p>You successfully detected the attacker's tampering. The system caught the modification because the hash no longer matched.</p>
-      <p>In a real system, you would now restore from a backup.</p>
-      <span class="action-highlight">Click "Reset System" on the right panel</span>
-    `;
+    // If we were in verify1, the user somehow broke the chain without the attack button. 
+    // Move to detect phase so they can reset.
+    if (state.phase === "verify1") {
+      state.phase = "detect";
+    }
+
+    if (state.phase === "detect") {
+      showNextSteps(`
+        <h4>⚠ CHAIN COMPROMISED</h4>
+        <p>You successfully detected the attacker's tampering. The system caught the modification because the hash no longer matched.</p>
+        <p>In a real system, you would now restore from a backup.</p>
+        <span class="action-highlight">Click "Reset System" on the right panel</span>
+      `);
+    }
   }
 };
 
@@ -895,21 +1002,17 @@ ui.btnTamper.onclick = () => {
     ui.blockStatus.className = "status-bar status-warn";
     return;
   }
-  if (state.isTampered) return;
+  
+  if (state.phase !== "attack") return;
 
-  state.isTampered = true;
-  state.isVerified = false;
+  state.phase = "detect";
   
-  // Secretly modify the data of the first block
   state.blocks[0].data += " [MODIFIED BY ATTACKER]";
-  
   renderLedger();
   
-  // Tell the user exactly what to do next in the status bar
   ui.blockStatus.innerHTML = `⚠ <strong>ATTACK DETECTED:</strong> A hacker modified Block #0.<br><span style="color:var(--text-muted); font-size:0.9rem;">Click "Detect Attack" to run the cryptographic check.</span>`;
   ui.blockStatus.className = "status-bar status-warn";
   
-  // Change the verify button to make it obvious
   ui.btnVerify.textContent = "Detect Attack (Verify)";
   ui.btnVerify.style.boxShadow = "0 0 15px var(--warn)";
   ui.btnVerify.style.borderColor = "var(--warn)";
@@ -917,25 +1020,23 @@ ui.btnTamper.onclick = () => {
   
   ui.btnReset.classList.remove('hidden');
 
-  // Update Next Steps Card for the attack phase
-  ui.nextSteps.classList.remove('hidden');
-  ui.nextSteps.innerHTML = `
+  showNextSteps(`
     <h4>⚠ INTRUSION DETECTED</h4>
     <p>A hacker has secretly altered a record in Block #0 without updating its digital fingerprint (hash).</p>
     <p>Your mission is to find the tampering.</p>
     <span class="action-highlight">Click "Detect Attack" on the right panel</span>
-  `;
+  `);
 };
 
 ui.btnReset.onclick = () => {
   const completedCount = state.currentMission;
+  const currentMissions = rounds[state.round];
+  
   state.blocks = [];
-  state.isTampered = false;
-  state.isVerified = false;
   
   (async () => {
     for (let i = 0; i < completedCount; i++) {
-      const m = missions[i];
+      const m = currentMissions[i];
       const index = state.blocks.length;
       const prevHash = index === 0 ? "GENESIS" : state.blocks[index - 1].hash;
       const timestamp = new Date().toISOString();
@@ -948,25 +1049,52 @@ ui.btnReset.onclick = () => {
     ui.blockStatus.className = "status-bar";
     ui.btnReset.classList.add('hidden');
     
-    // Reset the Verify button back to normal
     ui.btnVerify.textContent = "Verify Chain";
     ui.btnVerify.style.boxShadow = "";
     ui.btnVerify.style.borderColor = "var(--accent)";
     ui.btnVerify.style.color = "var(--text)";
 
-    // Update Next Steps Card back to the beginning of the verification phase
-    ui.nextSteps.classList.remove('hidden');
-    ui.nextSteps.innerHTML = `
+    // Move to final verification phase
+    state.phase = "verify2";
+
+    showNextSteps(`
       <h4>✔ SYSTEM RESTORED</h4>
       <p>The corrupted data has been wiped and the clean chain has been rebuilt.</p>
-      <p>You can now test the system again.</p>
-      <span class="action-highlight">Click "Verify Chain" to check integrity</span>
-    `;
+      <p>To complete this round and prove the system is secure, you must run one final check.</p>
+      <span class="action-highlight">Click "Verify Chain" to confirm integrity</span>
+    `);
   })();
 };
 
 /* =========================================================
-   9. INIT
+   9. PLAY AGAIN / NEXT ROUND LOGIC
+   ========================================================= */
+ui.btnPlayAgain.onclick = () => {
+  ui.gameOverModal.classList.remove('active');
+  
+  // Toggle round
+  state.round = state.round === 0 ? 1 : 0;
+  
+  // Reset state for the new round
+  state.currentMission = 0;
+  state.blocks = [];
+  state.phase = "questions";
+  
+  // Reset UI
+  ui.btnReset.classList.add('hidden');
+  ui.btnVerify.textContent = "Verify Chain";
+  ui.btnVerify.style.boxShadow = "";
+  ui.btnVerify.style.borderColor = "var(--accent)";
+  ui.btnVerify.style.color = "var(--text)";
+  ui.blockStatus.textContent = "System ready. Integrity 100%.";
+  ui.blockStatus.className = "status-bar";
+  
+  renderLedger();
+  loadMission();
+};
+
+/* =========================================================
+   10. INIT
    ========================================================= */
 loadMission();
 updateHud();
